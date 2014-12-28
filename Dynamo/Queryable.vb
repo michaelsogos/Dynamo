@@ -1,9 +1,11 @@
 ﻿Imports System.Linq.Expressions
 Imports Dynamo.Entities
 
-Public Class DynamoQueryable
+Public Class DynamoQueryable(Of TElement)
+    Implements IQueryable
+    Implements IQueryable(Of TElement)
     Implements IOrderedQueryable
-    Implements IOrderedQueryable(Of Entity)
+    Implements IOrderedQueryable(Of TElement)
 
     Private _Provider As DynamoProvider
     Private _Expression As Expression
@@ -42,7 +44,8 @@ Public Class DynamoQueryable
         Return _Provider.Execute(Expression).GetEnumerator()
     End Function
 
-    Public Function GetEnumerator() As IEnumerator(Of Entity) Implements IEnumerable(Of Entity).GetEnumerator
+    Public Function GetEnumerator() As IEnumerator(Of TElement) Implements IEnumerable(Of TElement).GetEnumerator
         Return _Provider.Execute(Of IEnumerable(Of Entity))(Expression).GetEnumerator()
     End Function
 End Class
+
