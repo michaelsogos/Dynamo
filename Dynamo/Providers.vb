@@ -26,8 +26,8 @@ Public MustInherit Class DynamoProvider
     End Sub
 
     Public Function CreateQuery(expression As Expression) As IQueryable Implements IQueryProvider.CreateQuery
-        'Return New DynamoQueryable(Me, expression)
-        Throw New NotImplementedException
+        Return New DynamoQueryable(Of Entity)(Me, expression)
+        'Throw New NotImplementedException
     End Function
 
     Public Function CreateQuery(Of TElement)(expression As Expression) As IQueryable(Of TElement) Implements IQueryProvider.CreateQuery

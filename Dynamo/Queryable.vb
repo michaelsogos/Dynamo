@@ -1,5 +1,6 @@
 ﻿Imports System.Linq.Expressions
 Imports Dynamo.Entities
+Imports System.Runtime.CompilerServices
 
 Public Class DynamoQueryable(Of TElement)
     Implements IQueryable
@@ -9,12 +10,17 @@ Public Class DynamoQueryable(Of TElement)
 
     Private _Provider As DynamoProvider
     Private _Expression As Expression
-    Public EntityName As String
+    Private _EntityName As String
 
-    Public Sub New(ByVal EntityName As String, ByVal Provider As DynamoProvider)
+    Public ReadOnly Property EntityName As String
+        Get
+            Return _EntityName
+        End Get
+    End Property
+
+    Friend Sub New(ByVal Provider As DynamoProvider)
         Me._Provider = Provider
-        Me._Expression = Expressions.Expression.Constant(Me)
-        Me.EntityName = EntityName
+        Me._Expression = Expressions.Expression.Constant(me)
     End Sub
 
     Friend Sub New(ByVal Provider As DynamoProvider, ByVal QueryExpression As Expression)
@@ -47,5 +53,18 @@ Public Class DynamoQueryable(Of TElement)
     Public Function GetEnumerator() As IEnumerator(Of TElement) Implements IEnumerable(Of TElement).GetEnumerator
         Return _Provider.Execute(Of IEnumerable(Of Entity))(Expression).GetEnumerator()
     End Function
+
+    Protected Function Query(ByVal EntityName As String) As DynamoQueryable(Of TElement)
+        _EntityName = EntityName
+        Return Me
+    End Function
+
 End Class
 
+Public Module DynamoQueryableExtensions
+    <Extension>
+    Public Function Query(Of TElement)(source As DynamoQueryable(Of TElement), ByVal EntityName As String) As DynamoQueryable(Of TElement)
+        Return source.Provider.CreateQuery(Expression.Call(Expression.Constant(source), source.GetType().GetMethod("Query", Reflection.BindingFlags.Instance + Reflection.BindingFlags.NonPublic), Expression.Constant(EntityName)))
+    End Function
+
+End Module

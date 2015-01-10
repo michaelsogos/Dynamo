@@ -6,6 +6,7 @@ Namespace Entities
         Property Id As Object
         Property Name As String
         Property Fields As Dictionary(Of String, Object)
+        'Property Fields As DataRow
         Property Schema As EntitySchema
     End Interface
 
@@ -14,6 +15,7 @@ Namespace Entities
         Public Property Id As Object Implements IEntity.Id
         Public Property Name As String Implements IEntity.Name
         Public Property Fields As Dictionary(Of String, Object) Implements IEntity.Fields
+        'Public Property Fields As DataRow Implements IEntity.Fields
         Public Property Schema As EntitySchema Implements IEntity.Schema
 
         Sub New()

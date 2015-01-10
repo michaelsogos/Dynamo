@@ -4,8 +4,8 @@ Public Class DynamoContext(Of provider As DynamoProvider)
     Implements IDisposable
 
     Protected ReadOnly CustomProvider As DynamoProvider
-
     Public ReadOnly Conventions As DynamoConventions
+    Private _DatabaseName As String
 
     Public Event MappingDataToEntity As EventHandler(Of DynamoMappingDataToEntityEventArgs)
 
@@ -15,8 +15,9 @@ Public Class DynamoContext(Of provider As DynamoProvider)
         AddHandler Me.CustomProvider.MappingDataToEntity, Sub(s, e) RaiseEvent MappingDataToEntity(s, e)
     End Sub
 
-    Public Function Entity(ByVal EntityName As String) As IQueryable(Of Entity)
-        Return New DynamoQueryable(Of Entity)(EntityName, CustomProvider)
+    Public Function Db(ByVal DatabaseName As String) As DynamoQueryable(Of Entity)
+        _DatabaseName = DatabaseName
+        Return New DynamoQueryable(Of Entity)(CustomProvider)
     End Function
 
 
