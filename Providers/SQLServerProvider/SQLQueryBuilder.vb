@@ -3,32 +3,38 @@ Imports Dynamo.Contracts
 Imports System.Data.SqlClient
 Imports Dynamo.Entities
 Imports System.Collections.ObjectModel
+Imports Dynamo.Expressions
 
 Public Class SQLQueryBuilder
     Inherits DynamoQueryBuilder
 
     Private Const GetForeignKeysQuery As String = "SELECT OBJECT_NAME(f.constraint_object_id) AS 'ForeignKey', OBJECT_NAME(f.parent_object_id) AS 'FKTable', c1.[name] AS 'FKColumnName', OBJECT_NAME(f.referenced_object_id) AS 'PKTable', c2.[name] AS 'PKColumnName' FROM sys.foreign_key_columns f INNER JOIN sys.all_columns c1 ON f.parent_object_id = c1.[object_id] AND f.parent_column_id = c1.column_id INNER JOIN sys.all_columns c2 ON f.referenced_object_id = c2.[object_id] AND f.referenced_column_id = c2.column_id WHERE OBJECT_NAME(f.parent_object_id) = @EntityName"
 
-    Private EntitiesAlias As Dictionary(Of String, String)
     Private TempBuilder As StringBuilder
     Private ParamNameBuilder As StringBuilder
     Private QueryBuilder As StringBuilder
     Private FilterBuilder As StringBuilder
     Private SortBuilder As StringBuilder
+    Private JoinBuilder As StringBuilder
     Private Parameters As List(Of SqlParameter)
+    Private EntitiesAlias As Dictionary(Of String, String)
+    Private EntitiesRelationships As List(Of EntitiesRelationship)
 
-    Public Sub New(ByRef Repository As SQLRepository, ByVal EntityName As String)
-        MyBase.New(Repository, EntityName)
+    Public Sub New(ByRef Repository As SQLRepository, ByVal EntityName As String, ByVal EntityAlias As String)
+        MyBase.New(Repository, EntityName, EntityAlias)
 
-        EntitiesAlias = New Dictionary(Of String, String)
         Parameters = New List(Of SqlParameter)
         TempBuilder = New StringBuilder
         ParamNameBuilder = New StringBuilder
         QueryBuilder = New StringBuilder
         FilterBuilder = New StringBuilder
         SortBuilder = New StringBuilder
-        QueryBuilder.AppendFormat("SELECT * FROM {0} t0", EntityName)
-        EntitiesAlias.Add("t0", EntityName)
+        JoinBuilder = New StringBuilder
+        EntitiesAlias = New Dictionary(Of String, String)()
+        EntitiesRelationships = New List(Of EntitiesRelationship)()
+
+        EntitiesAlias.Add(EntityAlias, EntityName)
+        QueryBuilder.AppendFormat("SELECT * FROM [{0}] {1}", EntityName, EntityAlias)
     End Sub
 
     Private Function FilterOperatorToString([Operator] As FilterOperators) As String
@@ -149,7 +155,7 @@ Public Class SQLQueryBuilder
         Dim Counter As Integer = 0
         For Each Expression In FilterExpressions
             Counter += 1
-            FilterBuilder.AppendFormat("t0.[{0}] {1} ", Expression.FieldName, FilterOperatorToString(Expression.Operator))
+            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", Expression.EntityAlias, Expression.FieldName, FilterOperatorToString(Expression.Operator))
             ConvertValueToParameter(Expression.Value, Expression.Operator)
             If Counter < FilterExpressions.Count Then
                 Select Case Combiner
@@ -164,24 +170,24 @@ Public Class SQLQueryBuilder
         Next
     End Sub
 
-    Public Overrides Function FilterBy(FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
+    Public Overrides Function FilterBy(EntityAlias As String, FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
         If FilterBuilder.Length <= 0 Then
             FilterBuilder.Append(" WHERE ")
-            FilterBuilder.AppendFormat("t0.[{0}] {1} ", FieldName, FilterOperatorToString([Operator]))
+            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
         Else
-            FilterBuilder.AppendFormat(" AND t0.[{0}] {1} ", FieldName, FilterOperatorToString([Operator]))
+            FilterBuilder.AppendFormat(" AND [{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
         End If
 
         ConvertValueToParameter(Value, [Operator])
         Return Me
     End Function
 
-    Public Overrides Function FilterBy(ByRef FilterExpression As Expressions.DynamoFilterExpression) As IFilterQueryBuilder
+    Public Overrides Function FilterBy(ByRef FilterExpression As DynamoFilterExpression) As IFilterQueryBuilder
         If FilterBuilder.Length <= 0 Then
             FilterBuilder.Append(" WHERE ")
-            FilterBuilder.AppendFormat("t0.[{0}] {1} ", FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
+            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
         Else
-            FilterBuilder.AppendFormat(" AND t0.[{0}] {1} ", FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
+            FilterBuilder.AppendFormat(" AND [{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
         End If
 
         ConvertValueToParameter(FilterExpression.Value, FilterExpression.Operator)
@@ -194,7 +200,7 @@ Public Class SQLQueryBuilder
         Dim EntityFieldName As String = Nothing
 
         TempBuilder.Clear()
-        TempBuilder.Append(QueryBuilder).Append(FilterBuilder.ToString).Append(SortBuilder.ToString)
+        TempBuilder.Append(QueryBuilder).Append(JoinBuilder.ToString).Append(FilterBuilder.ToString).Append(SortBuilder.ToString)
 
         With DirectCast(Repository, SQLRepository)
             .OpenConnection()
@@ -223,34 +229,57 @@ Public Class SQLQueryBuilder
                         End If
 
                         'retrieve foreignkeys if needed
-                        If Not EntitiesRelationships.ContainsKey(EntityName) Then
+                        If Not EntitiesForeignkeys.ContainsKey(EntityName) Then
                             Using DBCommForeignKeys As New SqlCommand(GetForeignKeysQuery, .Connection)
                                 DBCommForeignKeys.Parameters.Add(New SqlParameter("@EntityName", EntityName))
-                                Dim EntityRelationships As New List(Of EntityRelationShip)
+                                Dim EntityForeignkeys As New List(Of EntityForeignkey)
                                 Using DBReadForeignKeys = DBCommForeignKeys.ExecuteReader()
                                     While DBReadForeignKeys.Read
-                                        Dim Relationship As New EntityRelationShip
-                                        Relationship.EntityName = DBReadForeignKeys("FKTable")
-                                        Relationship.FieldName = DBReadForeignKeys("FKColumnName")
-                                        Relationship.ForeignKeyName = DBReadForeignKeys("ForeignKey")
-                                        Relationship.PrimaryEntityName = DBReadForeignKeys("PKTable")
-                                        Relationship.PrimaryFieldName = DBReadForeignKeys("PKColumnName")
-                                        EntityRelationships.Add(Relationship)
+                                        Dim Foreignkey As New EntityForeignkey
+                                        Foreignkey.EntityName = DBReadForeignKeys("FKTable")
+                                        Foreignkey.FieldName = DBReadForeignKeys("FKColumnName")
+                                        Foreignkey.ForeignKeyName = DBReadForeignKeys("ForeignKey")
+                                        Foreignkey.PrimaryEntityName = DBReadForeignKeys("PKTable")
+                                        Foreignkey.PrimaryFieldName = DBReadForeignKeys("PKColumnName")
+                                        EntityForeignkeys.Add(Foreignkey)
                                     End While
                                 End Using
-                                EntitiesRelationships.Add(EntityName, EntityRelationships)
+                                EntitiesForeignkeys.Add(EntityName, EntityForeignkeys)
                             End Using
                         End If
+
                         'retrieve query result
                         While Reader.Read
-                            Dim Record As New Entity
-                            Record.Schema.EntityObjectName = EntityName
-                            Dim PrimaryKeys As New Dictionary(Of String, Object)
-                            For i As Integer = 0 To Reader.FieldCount - 1
-                                Record.Fields.Add(Reader.GetName(i), If(Reader.IsDBNull(i), Nothing, Reader(i)))
 
+                            Dim SkipFieldsByEntityNames As New List(Of String)
+                            Dim HaveToAddNewEntity As Boolean = True
+                            Dim PrimaryKeys As New Dictionary(Of String, Object)
+
+                            Dim Record = CheckIfEntityAlreadyExist(MainEntity, Result, Reader)
+                            If Record Is Nothing Then
+                                Record = New Entity
+                                Record.Schema.EntityObjectName = EntityName
+                            Else
+                                SkipFieldsByEntityNames.Add(MainEntity)
+                                HaveToAddNewEntity = False
+                                PrimaryKeys = New Dictionary(Of String, Object)(Record.Schema.PrimaryKeys)
+                            End If
+
+                            For i As Integer = 0 To Reader.FieldCount - 1
+                                Dim ColumnEntityName = DBSchema.Rows(i)("BaseTableName")
+                                If Not String.IsNullOrWhiteSpace(ColumnEntityName) AndAlso SkipFieldsByEntityNames.Contains(ColumnEntityName) Then Continue For
+
+                                'Build the PRIMARY KEYS list divided by ENTITY
                                 If Not DBSchema.Rows(i).IsNull("IsKey") AndAlso DBSchema.Rows(i)("IsKey") = True Then
-                                    PrimaryKeys.Add(Reader.GetName(i), Reader(i))
+                                    If Not PrimaryKeys.ContainsKey(ColumnEntityName) Then PrimaryKeys.Add(ColumnEntityName, New Dictionary(Of String, Object))
+                                    PrimaryKeys(ColumnEntityName).Add(Reader.GetName(i), Reader(i))
+                                End If
+
+                                If Not String.IsNullOrWhiteSpace(Me.MainEntity) AndAlso Me.MainEntity.ToLower() <> ColumnEntityName.ToLower() Then
+                                    If Not Record.Fields.ContainsKey(ColumnEntityName) Then Record.Fields.Add(ColumnEntityName, New Dictionary(Of String, Object))
+                                    DirectCast(Record.Fields(ColumnEntityName), Dictionary(Of String, Object)).Add(Reader.GetName(i), If(Reader.IsDBNull(i), Nothing, Reader(i)))
+                                Else
+                                    Record.Fields.Add(Reader.GetName(i), If(Reader.IsDBNull(i), Nothing, Reader(i)))
                                 End If
 
                                 If Not String.IsNullOrWhiteSpace(EntityFieldID) Then
@@ -266,10 +295,11 @@ Public Class SQLQueryBuilder
                             Next
                             Record.Schema.PrimaryKeys = New ReadOnlyDictionary(Of String, Object)(PrimaryKeys)
 
-                            Dim EventArgs As New DynamoMappingDataToEntityEventArgs
-                            EventArgs.DataSchema = DBSchema
-                            EventArgs.Entity = Record
-                            Result.Add(Record)
+                            'Dim EventArgs As New DynamoMappingDataToEntityEventArgs
+                            'EventArgs.DataSchema = DBSchema
+                            'EventArgs.Entity = Record
+
+                            If HaveToAddNewEntity Then Result.Add(Record)
                         End While
                     End Using
                     Command.Parameters.Clear()
@@ -280,26 +310,45 @@ Public Class SQLQueryBuilder
         Return Result
     End Function
 
-    Public Overrides Function SortBy(FieldName As String, Direction As SortDirections) As IQueryBuilder
+    Private Function CheckIfEntityAlreadyExist(ByVal EntityName As String, ByRef QueryPartialResult As List(Of Dynamo.Entities.Entity), ByRef Reader As SqlDataReader) As Dynamo.Entities.Entity
+        For Each e In From SingleEntity In QueryPartialResult Select New With {.Entity = SingleEntity, .PrimaryKeys = SingleEntity.Schema.PrimaryKeys(EntityName)}
+            Dim AlreadyExistEntity As Boolean = True
+            For Each PrimayKey As KeyValuePair(Of String, Object) In e.PrimaryKeys
+                If ((Reader(PrimayKey.Key) Is DBNull.Value AndAlso PrimayKey.Value Is Nothing) OrElse (PrimayKey.Value = Reader(PrimayKey.Key))) Then
+                    AlreadyExistEntity *= True
+                Else
+                    AlreadyExistEntity *= False
+                End If
+            Next
+
+            If AlreadyExistEntity Then
+                Return e.Entity
+            End If
+        Next
+
+        Return Nothing
+    End Function
+
+    Public Overrides Function SortBy(EntityAlias As String, FieldName As String, Direction As SortDirections) As IQueryBuilder
         If SortBuilder.Length <= 0 Then
             SortBuilder.Append(" ORDER BY ")
-            SortBuilder.AppendFormat("t0.[{0}] {1} ", FieldName, SortDirectionToString(Direction))
+            SortBuilder.AppendFormat("[{0}].[{1}] {2} ", EntityAlias, FieldName, SortDirectionToString(Direction))
         Else
             TempBuilder.Clear()
-            TempBuilder.AppendFormat("t0.[{0}]", FieldName)
+            TempBuilder.AppendFormat("[{0}].[{1}]", EntityAlias, FieldName)
             If SortBuilder.ToString().Contains(TempBuilder.ToString) Then
-                Throw New Exception(String.Format("The field {0} is already used in ORDER BY expression!", FieldName))
+                Throw New Exception(String.Format("The field {0}.{1} is already used in ORDER BY expression!", EntityAlias, FieldName))
             End If
-            SortBuilder.AppendFormat(", t0.[{0}] {1} ", FieldName, SortDirectionToString(Direction))
+            SortBuilder.AppendFormat(", [{0}].[{1}] {2} ", EntityAlias, FieldName, SortDirectionToString(Direction))
         End If
         Return Me
     End Function
 
-    Public Overrides Function OrFilterBy(FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
+    Public Overrides Function OrFilterBy(EntityAlias As String, FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
         If FilterBuilder.Length <= 0 Then
             Throw New Exception("Cannot execute this method before call FilterBy!")
         Else
-            FilterBuilder.AppendFormat(" OR t0.[{0}] {1} ", FieldName, FilterOperatorToString([Operator]))
+            FilterBuilder.AppendFormat(" OR [{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
         End If
 
         ConvertValueToParameter(Value, [Operator])
@@ -310,7 +359,7 @@ Public Class SQLQueryBuilder
         If FilterBuilder.Length <= 0 Then
             Throw New Exception("Cannot execute this method before call FilterBy!")
         Else
-            FilterBuilder.AppendFormat(" OR t0.[{0}] {1} ", FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
+            FilterBuilder.AppendFormat(" OR [{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
         End If
 
         ConvertValueToParameter(FilterExpression.Value, FilterExpression.Operator)
@@ -344,4 +393,33 @@ Public Class SQLQueryBuilder
 
         Return Me
     End Function
+
+    Public Overrides Function By(ByRef RelationshipExpessions As IEnumerable(Of DynamoRelationshipExpression)) As IQueryBuilder
+        For Each Expression In RelationshipExpessions
+            EntitiesRelationships.Add(New EntitiesRelationship With {.MasterEntity = EntitiesAlias(Expression.RelatedEntityAlias), .SlaveEntity = EntitiesAlias(TempBuilder.ToString)})
+            JoinBuilder.AppendFormat(" [{0}].[{1}] {2} [{3}].[{4}]", TempBuilder.ToString, Expression.FieldName, FilterOperatorToString(Expression.Operator), Expression.RelatedEntityAlias, Expression.RelatedFieldName)
+        Next
+        Return Me
+    End Function
+
+    Public Overrides Function By(FieldName As String, JoinOperator As RelationshipOperators, RelatedEntityAlias As String, RelatedFieldName As String) As IQueryBuilder
+        EntitiesRelationships.Add(New EntitiesRelationship With {.MasterEntity = EntitiesAlias(RelatedEntityAlias), .SlaveEntity = EntitiesAlias(TempBuilder.ToString)})
+        JoinBuilder.AppendFormat(" [{0}].[{1}] {2} [{3}].[{4}]", TempBuilder.ToString, FieldName, FilterOperatorToString(JoinOperator), RelatedEntityAlias, RelatedFieldName)
+        Return Me
+    End Function
+
+    Public Overrides Function Join(EntityName As String, EntityAlias As String, IsEntityRequried As Boolean) As IRelationshipQueryBuilder
+        If EntitiesAlias.ContainsKey(EntityAlias) Then Throw New Exception("The entity alias " + EntityAlias + " is already used!")
+        EntitiesAlias.Add(EntityAlias, EntityName)
+
+        JoinBuilder.AppendFormat(" {0} JOIN [{1}] [{2}] ON", If(IsEntityRequried, "INNER", "LEFT"), EntityName, EntityAlias)
+        TempBuilder.Clear()
+        TempBuilder.Append(EntityAlias)
+        Return Me
+    End Function
+End Class
+
+Friend Class EntitiesRelationship
+    Public Property MasterEntity
+    Public Property SlaveEntity
 End Class

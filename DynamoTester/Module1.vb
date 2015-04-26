@@ -39,9 +39,7 @@ Module Module1
     Sub Main()
         Dim ConnectionString = ConfigurationManager.ConnectionStrings("DBTest").ConnectionString
         Dim Repo As New SQLRepository(ConnectionString)
-        Dim Result = Repo.CreateQuery("app_sidebarmenu").FilterBy("itemorder", FilterOperators.Include + FilterOperators.Not, New String() {1, 3}).Execute()
-
-
+        Dim Result = Repo.Query("app_sidebarmenu", "sm").FilterBy("sm", "itemorder", FilterOperators.Include + FilterOperators.Not, New String() {1, 3}).Execute()
 
         Dim b = Result.FirstOrDefault
         Dim c = JsonConvert.SerializeObject(Result)

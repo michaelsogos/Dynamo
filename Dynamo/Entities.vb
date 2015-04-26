@@ -24,7 +24,7 @@ Namespace Entities
         End Sub
     End Class
 
-    Public Class EntityRelationShip
+    Public Class EntityForeignkey
         Public Property ForeignKeyName As String
         Public Property EntityName As String
         Public Property FieldName As String

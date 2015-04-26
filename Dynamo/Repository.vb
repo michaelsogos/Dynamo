@@ -3,7 +3,7 @@ Imports Dynamo.Entities
 
 Namespace Contracts
     Public Interface IRepository
-        Function CreateQuery(ByVal EntityName As String) As IQueryBuilder
+        Function Query(ByVal EntityName As String, ByVal EntityAlias As String) As IQueryBuilder
         Sub OpenConnection()
         Sub CloseConnection()
     End Interface
@@ -21,12 +21,12 @@ Public MustInherit Class DynamoRepository(Of QueryBuilder As DynamoQueryBuilder)
     Public Sub New(ByVal ConnectionString As String)
         Me.Conventions = New DynamoConventions
         Me.ConnectionString = ConnectionString
-        If DynamoCache.EntitiesRelationships Is Nothing Then DynamoCache.EntitiesRelationships = New Dictionary(Of String, List(Of EntityRelationShip))
+        If DynamoCache.EntitiesForeignkeys Is Nothing Then DynamoCache.EntitiesForeignkeys = New Dictionary(Of String, List(Of EntityForeignkey))
         AddHandler MappingDataToEntity, Sub(s, e) RaiseEvent MappingDataToEntity(s, e)
     End Sub
 
-    Public Function CreateQuery(ByVal EntityName As String) As IQueryBuilder Implements IRepository.CreateQuery
-        Return Activator.CreateInstance(GetType(QueryBuilder), {Me, EntityName})
+    Public Function Query(ByVal EntityName As String, ByVal EntityAlias As String) As IQueryBuilder Implements IRepository.Query
+        Return Activator.CreateInstance(GetType(QueryBuilder), {Me, EntityName, EntityAlias})
     End Function
 
     Public MustOverride Sub OpenConnection() Implements IRepository.OpenConnection
