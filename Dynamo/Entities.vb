@@ -24,6 +24,36 @@ Namespace Entities
         End Sub
     End Class
 
+    'Public Class SEntity
+    '    Inherits DynamicObject
+    '    Implements IEntity
+
+    '    Public Property Fields As Dictionary(Of String, Object) Implements IEntity.Fields
+
+    '    Public Property Id As Object Implements IEntity.Id
+
+    '    Public Property Name As String Implements IEntity.Name
+
+    '    Public Property Schema As EntitySchema Implements IEntity.Schema
+
+    '    Public Sub New()
+    '        Fields = New Dictionary(Of String, Object)
+    '    End Sub
+
+    '    Public Overrides Function TryGetMember(binder As GetMemberBinder, ByRef result As Object) As Boolean
+    '        If Fields.ContainsKey(binder.Name) Then
+    '            result = Fields(binder.Name)
+    '            Return True
+    '        End If
+    '        Return False
+    '    End Function
+
+    '    Public Overrides Function TrySetMember(binder As SetMemberBinder, value As Object) As Boolean
+    '        Fields(binder.Name) = value
+    '        Return True
+    '    End Function
+    'End Class
+
     Public Class EntityForeignkey
         Public Property ForeignKeyName As String
         Public Property EntityName As String
