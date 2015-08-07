@@ -3,6 +3,7 @@ Imports Microsoft.VisualStudio.TestTools.UnitTesting
 Imports Dynamo.Providers
 Imports System.Configuration
 Imports Dynamo.Expressions
+Imports Dynamo.Entities
 
 <TestClass()>
 Public Class SQLServerTest
@@ -104,12 +105,61 @@ Public Class SQLServerTest
     <TestMethod>
     Public Sub Join()
 
-        'Test 1-N RelationShip
+        ''TEST 1: 1-N Two levels, One child type
+        'FirstQuery()
+        'Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
+        '    .Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
+        'Dim Result = Query.Execute
+        'Assert.AreEqual(2, Result.Count)
+        'Dim Test1 = (From i In Result Where i.Fields("ID").ToString.ToLower() = "23aee672-db40-499e-95fc-4cdb7897187e" Select i).FirstOrDefault()
+        'Assert.IsNotNull(Test1)
+        'Assert.AreEqual(Test1.Fields("SecondTable").Count, 2)
+        'Assert.IsTrue(DirectCast(Test1.Fields("SecondTable"), List(Of Entity)).FirstOrDefault.Fields.ContainsKey("AData"))
+
+        ''TEST 2: 1-N Two levels, Two child type
+        'FirstQuery()
+        'Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
+        '     .Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID") _
+        '     .Join("Thirdtable", "tt", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
+        'Result = Query.Execute
+        'Dim Test2_1 = (From i In Result Where i.Fields("ID").ToString.ToLower() = "23aee672-db40-499e-95fc-4cdb7897187e" Select i).FirstOrDefault()
+        'Assert.AreEqual(Test2_1.Fields("SecondTable").Count, 2)
+        'Assert.AreEqual(Test2_1.Fields("Thirdtable").Count, 1)
+        'Dim Test2_2 = (From i In Result Where i.Fields("ID").ToString.ToLower() = "c38be8e1-440e-4db8-a235-a35c428913bf" Select i).FirstOrDefault()
+        'Assert.AreEqual(Test2_2.Fields("SecondTable").Count, 1)
+        'Assert.AreEqual(Test2_2.Fields("Thirdtable").Count, 2)
+        'Assert.IsTrue(DirectCast(Test2_2.Fields("Thirdtable"), List(Of Entity)).FirstOrDefault.Fields("Name").ToString().StartsWith("MyTest3_"))
+        'Assert.AreEqual(DirectCast(Test2_1.Fields("Thirdtable"), List(Of Entity)).FirstOrDefault.Fields("NullableInt"), 123)
+
+        ''TEST 3: 1-N Three levels, One child type per level
+        'FirstQuery()
+        'Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
+        '     .Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID") _
+        '     .Join("FOURTHTABLE", "frt", True).By("ParentID", RelationshipOperators.Equal, "st", "ID")
+        'Result = Query.Execute
+
+
+
+        'TEST 4
         FirstQuery()
-        Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2").Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
+        Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
+        .Join("SecondTable", "st", True, NestedEntityType.MultipleEntity).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
         Dim Result = Query.Execute
+
+
 
 
     End Sub
 
+    <TestMethod>
+    Public Sub Expand()
+
+        '1 level after ROOT
+        FirstQuery()
+        Query.Expand("SecondTable", "st", "ft", "ID", "ParentID")
+        Dim Result = Query.Execute
+        Dim a = 0
+
+
+    End Sub
 End Class
