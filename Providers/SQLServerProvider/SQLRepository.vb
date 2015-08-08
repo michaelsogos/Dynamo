@@ -10,8 +10,15 @@ Public Class SQLRepository
     End Sub
 
     Public Overrides Sub OpenConnection()
-        If Connection Is Nothing Then Connection = New SqlConnection(Me.ConnectionString)
-        If String.IsNullOrWhiteSpace(Connection.ConnectionString) Then Connection.ConnectionString = ConnectionString
+        Dim ConnectionBuilder As New SqlConnectionStringBuilder(Me.ConnectionString)
+        If Not ConnectionBuilder.MultipleActiveResultSets Then
+            Trace.TraceWarning("The MARS feature is disable!")
+            ConnectionBuilder.MultipleActiveResultSets = True
+            Trace.TraceWarning("The MARS feature forced to enable!")
+        End If
+
+        If Connection Is Nothing Then Connection = New SqlConnection(ConnectionBuilder.ConnectionString)
+        If String.IsNullOrWhiteSpace(Connection.ConnectionString) Then Connection.ConnectionString = ConnectionBuilder.ConnectionString
         If Connection.State <> ConnectionState.Open Then Connection.Open()
     End Sub
 

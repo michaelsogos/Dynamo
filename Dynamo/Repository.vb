@@ -21,7 +21,7 @@ Public MustInherit Class DynamoRepository(Of QueryBuilder As DynamoQueryBuilder)
     Public Sub New(ByVal ConnectionString As String)
         Me.Conventions = New DynamoConventions
         Me.ConnectionString = ConnectionString
-        If DynamoCache.EntitiesForeignkeys Is Nothing Then DynamoCache.EntitiesForeignkeys = New Dictionary(Of String, List(Of EntityForeignkey))
+        'If DynamoCache.EntitiesForeignkeys Is Nothing Then DynamoCache.EntitiesForeignkeys = New Dictionary(Of String, List(Of EntityForeignkey))
         AddHandler MappingDataToEntity, Sub(s, e) RaiseEvent MappingDataToEntity(s, e)
     End Sub
 
@@ -62,9 +62,9 @@ Public Class DynamoConventions
     Public Property EntityFieldName As String
 
     Sub New()
-        _AutodetectEntityFieldID = False
-        _EntityFieldID = ""
-        _EntityFieldName = ""
+        AutodetectEntityFieldID = True
+        EntityFieldID = "ID|{entityname}ID|ID{entityname}"
+        EntityFieldName = "NAME|{entityname}NAME|NAME{entityname}"
     End Sub
 
 End Class

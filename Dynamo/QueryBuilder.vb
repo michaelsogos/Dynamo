@@ -33,19 +33,7 @@ Namespace Contracts
 
         Function SortBy(ByVal EntityAlias As String, ByVal FieldName As String, ByVal Direction As SortDirections) As IQueryBuilder
 
-        ''' <summary>
-        ''' Join the specified entities with flatted result.
-        ''' </summary>
-        ''' <returns></returns>
-        ''' <remarks></remarks>
-        Function Join(ByVal EntityName As String, ByVal EntityAlias As String, Optional ByVal IsEntityRequried As Boolean = True, Optional ByVal NestedEntityType As NestedEntityType = NestedEntityType.NotNested) As IJoinQueryBuilder
-
-        ''' <summary>
-        ''' Navigate through Parent/Child entities returning nested object
-        ''' </summary>
-        ''' <returns></returns>
-        Function Expand(ByVal EntityName As String, ByVal EntityAlias As String, ByVal ParentEntityAlias As String, ByVal ParentEntityKeyFieldName As String, ByVal ExpandEntityKeyFieldName As String) As IQueryBuilder
-
+        Function WithNested(ByVal NestedEntityName As String, ByVal NestedEntityAlias As String, ByVal ParentEntityAlias As String) As INestedQueryBuilder
 
         Function Execute() As List(Of Entity)
     End Interface
@@ -98,12 +86,23 @@ Namespace Contracts
         ''' <remarks></remarks>
         Function By(ByVal FieldName As String, ByVal [JoinOperator] As RelationshipOperators, ByVal RelatedEntityAlias As String, ByVal RelatedFieldName As String) As IQueryBuilder
     End Interface
+
+    Public Interface INestedQueryBuilder
+        ''' <summary>
+        ''' Set the fields to match nested entities with parent entity
+        ''' </summary>
+        ''' <param name="NestedEntityFieldName"></param>
+        ''' <param name="ParentEntityFieldName"></param>
+        ''' <returns></returns>
+        Function By(ByVal NestedEntityFieldName As String, ByVal ParentEntityFieldName As String) As INestedQueryBuilder
+    End Interface
+
 End Namespace
 
 Public MustInherit Class DynamoQueryBuilder
     Implements IQueryBuilder
     Implements IFilterQueryBuilder
-    Implements IJoinQueryBuilder
+    Implements INestedQueryBuilder
 
     Private _Repository As IRepository
     Private _Entities As Dictionary(Of String, String)
@@ -119,18 +118,15 @@ Public MustInherit Class DynamoQueryBuilder
         End Get
     End Property
 
-    Protected ReadOnly Property EntitiesForeignkeys As Dictionary(Of String, List(Of EntityForeignkey))
-        Get
-            Return DynamoCache.EntitiesForeignkeys
-        End Get
-    End Property
-    Protected ReadOnly MainEntity As String
+    Protected ReadOnly MainEntityName As String
+    Protected ReadOnly MainEntityAlias As String
 
     Public Sub New(ByRef Repository As IRepository, ByVal EntityName As String, ByVal EntityAlias As String)
         _Repository = Repository
-        _Entities = New Dictionary(Of String, String)
+        _Entities = New Dictionary(Of String, String)(StringComparer.InvariantCultureIgnoreCase)
         _Entities.Add(EntityAlias, EntityName)
-        MainEntity = EntityName
+        MainEntityName = EntityName
+        MainEntityAlias = EntityAlias
     End Sub
 
     Public MustOverride Function Execute() As List(Of Entity) Implements IQueryBuilder.Execute
@@ -154,10 +150,8 @@ Public MustInherit Class DynamoQueryBuilder
 #End Region
 
 #Region "NavigationMethods"
-    Public MustOverride Function Join(EntityName As String, EntityAlias As String, Optional IsEntityRequried As Boolean = True, Optional NestedEntityType As NestedEntityType = NestedEntityType.NotNested) As IJoinQueryBuilder Implements IQueryBuilder.Join
-    Public MustOverride Function By(ByRef RelationshipExpessions As IEnumerable(Of DynamoJoinExpression)) As IQueryBuilder Implements IJoinQueryBuilder.By
-    Public MustOverride Function By(FieldName As String, JoinOperator As RelationshipOperators, ParentEntityAlias As String, ParentFieldName As String) As IQueryBuilder Implements IJoinQueryBuilder.By
-    Public MustOverride Function Expand(EntityName As String, EntityAlias As String, ParentEntityAlias As String, ParentEntityKeyFieldName As String, ExpandEntityKeyFieldName As String) As IQueryBuilder Implements IQueryBuilder.Expand
+    Public MustOverride Function WithNested(NestedEntityName As String, NestedEntityAlias As String, ParentEntityAlias As String) As INestedQueryBuilder Implements IQueryBuilder.WithNested
+    Public MustOverride Function By(NestedEntityFieldName As String, ParentEntityFieldName As String) As INestedQueryBuilder Implements INestedQueryBuilder.By
 #End Region
 
 
@@ -191,11 +185,11 @@ Public Enum RelationshipOperators
     LessThan = 8
 End Enum
 
-Public Enum NestedEntityType
-    NotNested = 0 'Classic Join
-    SingleEntity = 1 'Nested 1-1
-    MultipleEntity = 2 'Nested 1-N
-End Enum
+'Public Enum NestedEntityType
+'    NotNested = 0 'Classic Join
+'    SingleEntity = 1 'Nested 1-1
+'    MultipleEntity = 2 'Nested 1-N
+'End Enum
 
 Namespace Expressions
     Public Class DynamoFilterExpression

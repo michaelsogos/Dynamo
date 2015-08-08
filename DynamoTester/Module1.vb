@@ -37,12 +37,68 @@ Module Module1
     'End Sub
 
     Sub Main()
-        Dim ConnectionString = ConfigurationManager.ConnectionStrings("DBTest").ConnectionString
-        Dim Repo As New SQLRepository(ConnectionString)
-        Dim Result = Repo.Query("app_sidebarmenu", "sm").FilterBy("sm", "itemorder", FilterOperators.Include + FilterOperators.Not, New String() {1, 3}).Execute()
+        'Dim ConnectionString = ConfigurationManager.ConnectionStrings("DBTest").ConnectionString
+        'Dim Repo As New SQLRepository(ConnectionString)
+        'Dim Result = Repo.Query("app_sidebarmenu", "sm").FilterBy("sm", "itemorder", FilterOperators.Include + FilterOperators.Not, New String() {1, 3}).Execute()
 
-        Dim b = Result.FirstOrDefault
-        Dim c = JsonConvert.SerializeObject(Result)
+        'Dim b = Result.FirstOrDefault
+        'Dim c = JsonConvert.SerializeObject(Result)
+
+        '' '' '' ''Dim E1 As New Entities.Entity
+        '' '' '' ''Dim E2 As Object = New Entities.SEntity
+        '' '' '' ''Dim R As New Random(10)
+
+        ' '' '' '' ''WRITE
+        '' '' '' ''Dim stopWatch As New Stopwatch()
+        '' '' '' ''stopWatch.Start()
+        '' '' '' ''For x As Long = 1 To 1000000
+        '' '' '' ''    E1.Fields("TEST1") = x
+        '' '' '' ''    E1.Fields("TEST2") = x + R.Next()
+        '' '' '' ''    'E1.Fields.Add("TEST" + x.ToString, x)
+        '' '' '' ''Next
+        '' '' '' ''stopWatch.Stop()
+        '' '' '' ''Dim ts = stopWatch.Elapsed
+        '' '' '' ''Dim elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10)
+        '' '' '' ''Console.WriteLine("WRITE 1.000.000 E1: " + elapsedTime)
+
+        '' '' '' ''stopWatch = New Stopwatch()
+        '' '' '' ''stopWatch.Start()
+        '' '' '' ''For x As Long = 1 To 1000000
+        '' '' '' ''    E2.TEST1 = x
+        '' '' '' ''    E2.TEST2 = x + R.Next
+        '' '' '' ''Next
+        '' '' '' ''stopWatch.Stop()
+        '' '' '' ''ts = stopWatch.Elapsed
+        '' '' '' ''elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10)
+        '' '' '' ''Console.WriteLine("WRITE 1.000.000 E2: " + elapsedTime)
+
+        '' '' '' ''Console.ReadKey()
+
+        ' '' '' '' ''READ
+        '' '' '' ''stopWatch = New Stopwatch()
+        '' '' '' ''stopWatch.Start()
+        '' '' '' ''For x = 1 To 1000000
+        '' '' '' ''    Dim a = E1.Fields("TEST1")
+        '' '' '' ''    Dim b = E1.Fields("TEST2")
+        '' '' '' ''Next
+        '' '' '' ''stopWatch.Stop()
+        '' '' '' ''ts = stopWatch.Elapsed
+        '' '' '' ''elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10)
+        '' '' '' ''Console.WriteLine("READ 1.000.000 E1: " + elapsedTime)
+
+
+        '' '' '' ''stopWatch = New Stopwatch()
+        '' '' '' ''stopWatch.Start()
+        '' '' '' ''For x = 1 To 1000000
+        '' '' '' ''    Dim a = E2.TEST1
+        '' '' '' ''    Dim b = E2.TEST2
+        '' '' '' ''Next
+        '' '' '' ''stopWatch.Stop()
+        '' '' '' ''ts = stopWatch.Elapsed
+        '' '' '' ''elapsedTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10)
+        '' '' '' ''Console.WriteLine("READ 1.000.000 E2: " + elapsedTime)
+
+        '' '' '' ''Console.ReadKey()
 
     End Sub
 
