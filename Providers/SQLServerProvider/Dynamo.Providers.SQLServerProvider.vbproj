@@ -6,11 +6,12 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{34FEF71E-BC87-47DB-AD7D-124B5B27FE71}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <RootNamespace>Dynamo.Providers</RootNamespace>
+    <RootNamespace>Dynamo.Providers.SQLServerProvider</RootNamespace>
     <AssemblyName>Dynamo.Providers.SQLServerProvider</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <MyType>Windows</MyType>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

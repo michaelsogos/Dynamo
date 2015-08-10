@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Dynamo", "Dynamo\Dynamo.vbproj", "{F99E6BE6-1829-42E4-ADBC-4B3DF70F6531}"
 EndProject
@@ -10,6 +10,8 @@ EndProject
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Dynamo.Providers.SQLServerProvider", "Providers\SQLServerProvider\Dynamo.Providers.SQLServerProvider.vbproj", "{34FEF71E-BC87-47DB-AD7D-124B5B27FE71}"
 EndProject
 Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Dynamo.UnitTest", "UnitTest\Dynamo.UnitTest\Dynamo.UnitTest.vbproj", "{382DFFCE-D4BF-4E69-8771-F145D782BE98}"
+EndProject
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "Dynamo.Providers.NuoDBProvider", "Providers\NuoDBProvider\Dynamo.Providers.NuoDBProvider\Dynamo.Providers.NuoDBProvider.vbproj", "{98C0D557-BCEA-4880-A2A4-9E725D9221D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{382DFFCE-D4BF-4E69-8771-F145D782BE98}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{382DFFCE-D4BF-4E69-8771-F145D782BE98}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{382DFFCE-D4BF-4E69-8771-F145D782BE98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98C0D557-BCEA-4880-A2A4-9E725D9221D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98C0D557-BCEA-4880-A2A4-9E725D9221D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98C0D557-BCEA-4880-A2A4-9E725D9221D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98C0D557-BCEA-4880-A2A4-9E725D9221D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
