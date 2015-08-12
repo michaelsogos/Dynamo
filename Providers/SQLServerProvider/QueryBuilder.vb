@@ -7,7 +7,7 @@ Imports Dynamo.Expressions
 Imports System.Reflection
 Imports System.Data.Common
 
-Public Class SQLQueryBuilder
+Public Class QueryBuilder
     Inherits DynamoQueryBuilder
 
 #Region "Class Variables"
@@ -28,7 +28,7 @@ Public Class SQLQueryBuilder
 
 #End Region
 
-    Public Sub New(ByRef Repository As SQLRepository, ByVal EntityName As String, ByVal EntityAlias As String)
+    Public Sub New(ByRef Repository As Repository, ByVal EntityName As String, ByVal EntityAlias As String)
         MyBase.New(Repository, EntityName, EntityAlias)
 
         Parameters = New List(Of SqlParameter)
@@ -229,7 +229,7 @@ Public Class SQLQueryBuilder
             TempBuilder.Append(Environment.NewLine)
         Next
 
-        With DirectCast(Repository, SQLRepository)
+        With DirectCast(Repository, Repository)
             .OpenConnection()
             Using .Connection
 
@@ -309,7 +309,7 @@ Public Class SQLQueryBuilder
     End Sub
 
     Private Sub RetrieveEntitySchema(ByRef Row As DataRow, ByRef Record As Entity)
-        With DirectCast(Repository, SQLRepository)
+        With DirectCast(Repository, Repository)
             If .Conventions.AutodetectEntityFieldID Then
                 If Row.Table.PrimaryKey.Count = 1 Then
                     Record.Schema.FieldID = Row.Table.PrimaryKey.FirstOrDefault.ColumnName
@@ -327,7 +327,7 @@ Public Class SQLQueryBuilder
     End Sub
 
     Private Sub RetrieveSchemaFieldID(ByRef Row As DataRow, ByRef Record As Entity)
-        Dim LookupNames = DirectCast(Repository, SQLRepository).Conventions.EntityFieldID.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
+        Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldID.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
         Dim FieldID = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
         If Not String.IsNullOrWhiteSpace(FieldID) Then
             Record.Schema.FieldID = FieldID
@@ -338,7 +338,7 @@ Public Class SQLQueryBuilder
     End Sub
 
     Private Sub RetrieveSchemaFieldName(ByRef Row As DataRow, ByRef Record As Entity)
-        Dim LookupNames = DirectCast(Repository, SQLRepository).Conventions.EntityFieldName.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
+        Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldName.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
         Dim FieldName = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
         If Not String.IsNullOrWhiteSpace(FieldName) Then
             Record.Schema.FieldName = FieldName

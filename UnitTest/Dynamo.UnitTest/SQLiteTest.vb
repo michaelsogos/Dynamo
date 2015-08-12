@@ -6,17 +6,17 @@ Imports Dynamo.Expressions
 Imports Dynamo.Entities
 
 <TestClass()>
-Public Class SQLServerTest
+Public Class SQLiteTest
 
-    Private Repository As SQLServerProvider.Repository
-    Private Query As SQLServerProvider.QueryBuilder
+    Private Repository As SQLiteProvider.Repository
+    Private Query As SQLiteProvider.QueryBuilder
 
     <TestMethod>
     Public Sub CreateRepository()
-        Dim ConnectionString = ConfigurationManager.ConnectionStrings("DBTest").ConnectionString
+        Dim ConnectionString = ConfigurationManager.ConnectionStrings("SQLite").ConnectionString
         Assert.IsFalse(String.IsNullOrWhiteSpace(ConnectionString))
 
-        Repository = New SQLServerProvider.Repository(ConnectionString)
+        Repository = New SQLiteProvider.Repository(ConnectionString)
         Assert.IsNotNull(Repository)
 
     End Sub
@@ -25,8 +25,8 @@ Public Class SQLServerTest
         If Repository Is Nothing Then CreateRepository()
         Query = Repository.Query("firsttable", "ft")
         Assert.IsNotNull(Query)
-        'Assert.AreEqual(Query.Entities.FirstOrDefault.Value, "firsttable")
-        'Assert.AreEqual(Query.Entities.FirstOrDefault.Key, "ft")
+        Assert.AreEqual(Query.Entities.FirstOrDefault.Value, "firsttable")
+        Assert.AreEqual(Query.Entities.FirstOrDefault.Key, "ft")
     End Sub
 
     <TestMethod>
@@ -101,55 +101,6 @@ Public Class SQLServerTest
         Assert.AreEqual(Query.Execute().FirstOrDefault.Fields("Test"), 3)
 
     End Sub
-
-    '<TestMethod>
-    'Public Sub Join()
-
-    '    ''TEST 1: 1-N Two levels, One child type
-    '    'FirstQuery()
-    '    'Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
-    '    '    .Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
-    '    'Dim Result = Query.Execute
-    '    'Assert.AreEqual(2, Result.Count)
-    '    'Dim Test1 = (From i In Result Where i.Fields("ID").ToString.ToLower() = "23aee672-db40-499e-95fc-4cdb7897187e" Select i).FirstOrDefault()
-    '    'Assert.IsNotNull(Test1)
-    '    'Assert.AreEqual(Test1.Fields("SecondTable").Count, 2)
-    '    'Assert.IsTrue(DirectCast(Test1.Fields("SecondTable"), List(Of Entity)).FirstOrDefault.Fields.ContainsKey("AData"))
-
-    '    ''TEST 2: 1-N Two levels, Two child type
-    '    'FirstQuery()
-    '    'Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
-    '    '     .Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID") _
-    '    '     .Join("Thirdtable", "tt", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
-    '    'Result = Query.Execute
-    '    'Dim Test2_1 = (From i In Result Where i.Fields("ID").ToString.ToLower() = "23aee672-db40-499e-95fc-4cdb7897187e" Select i).FirstOrDefault()
-    '    'Assert.AreEqual(Test2_1.Fields("SecondTable").Count, 2)
-    '    'Assert.AreEqual(Test2_1.Fields("Thirdtable").Count, 1)
-    '    'Dim Test2_2 = (From i In Result Where i.Fields("ID").ToString.ToLower() = "c38be8e1-440e-4db8-a235-a35c428913bf" Select i).FirstOrDefault()
-    '    'Assert.AreEqual(Test2_2.Fields("SecondTable").Count, 1)
-    '    'Assert.AreEqual(Test2_2.Fields("Thirdtable").Count, 2)
-    '    'Assert.IsTrue(DirectCast(Test2_2.Fields("Thirdtable"), List(Of Entity)).FirstOrDefault.Fields("Name").ToString().StartsWith("MyTest3_"))
-    '    'Assert.AreEqual(DirectCast(Test2_1.Fields("Thirdtable"), List(Of Entity)).FirstOrDefault.Fields("NullableInt"), 123)
-
-    '    ''TEST 3: 1-N Three levels, One child type per level
-    '    'FirstQuery()
-    '    'Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
-    '    '     .Join("SecondTable", "st", True).By("ParentID", RelationshipOperators.Equal, "ft", "ID") _
-    '    '     .Join("FOURTHTABLE", "frt", True).By("ParentID", RelationshipOperators.Equal, "st", "ID")
-    '    'Result = Query.Execute
-
-
-
-    '    'TEST 4
-    '    FirstQuery()
-    '    Query.FilterBy("ft", "Name", FilterOperators.Equal, "Test2") _
-    '    .Join("SecondTable", "st", True, NestedEntityType.MultipleEntity).By("ParentID", RelationshipOperators.Equal, "ft", "ID")
-    '    Dim Result = Query.Execute
-
-
-
-
-    'End Sub
 
     <TestMethod>
     Public Sub WithNested()

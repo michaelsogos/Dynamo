@@ -1,7 +1,7 @@
 ﻿Imports System.Data.SqlClient
 
-Public Class SQLRepository
-    Inherits DynamoRepository(Of SQLQueryBuilder)
+Public Class Repository
+    Inherits DynamoRepository(Of QueryBuilder)
 
     Public Connection As SqlConnection
 
