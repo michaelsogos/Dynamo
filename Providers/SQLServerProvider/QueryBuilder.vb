@@ -24,28 +24,9 @@ Public Class QueryBuilder
     Private NestedExpressions As List(Of NestedExpression)
     Private LatestMethodParameters As Dictionary(Of String, Object)
     Private DBResult As DataSet
-
-
 #End Region
 
-    Public Sub New(ByRef Repository As Repository, ByVal EntityName As String, ByVal EntityAlias As String)
-        MyBase.New(Repository, EntityName, EntityAlias)
-
-        Parameters = New List(Of SqlParameter)
-        TempBuilder = New StringBuilder
-        ParamNameBuilder = New StringBuilder
-        FilterBuilder = New StringBuilder
-        SortBuilder = New StringBuilder
-        MARSQueries = New Dictionary(Of String, String)(StringComparer.InvariantCultureIgnoreCase)
-        EntityDependencies = New Dictionary(Of String, HashSet(Of String))(StringComparer.InvariantCultureIgnoreCase)
-        ElaboratedDependeciesAlias = New HashSet(Of String)(StringComparer.InvariantCultureIgnoreCase)
-        NestedExpressions = New List(Of NestedExpression)
-        LatestMethodParameters = New Dictionary(Of String, Object)
-        DBResult = New DataSet
-
-        MARSQueries.Add(EntityAlias.ToLower, String.Format("SELECT {1}.* FROM [{0}] {1}", EntityName, EntityAlias))
-    End Sub
-
+#Region "FILTERING Functions"
     Private Function FilterOperatorToString([Operator] As FilterOperators) As String
         Select Case [Operator]
             Case FilterOperators.Equal
@@ -77,15 +58,55 @@ Public Class QueryBuilder
         End Select
     End Function
 
-    Private Function SortDirectionToString(Direction As SortDirections) As String
-        Select Case Direction
-            Case SortDirections.Ascending
-                Return "ASC"
-            Case SortDirections.Descending
-                Return "DESC"
-            Case Else
-                Throw New NotImplementedException("SortDirection " + Direction.ToString + " not implemented!")
-        End Select
+    Private Sub ParseFilterExpressionList(ByRef FilterExpressions As IEnumerable(Of Expressions.DynamoFilterExpression), ByRef Combiner As FilterCombiners)
+        Dim Counter As Integer = 0
+        For Each Expression In FilterExpressions
+            Counter += 1
+            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", Expression.EntityAlias, Expression.FieldName, FilterOperatorToString(Expression.Operator))
+            ConvertValueToParameter(Expression.Value, Expression.Operator)
+            If (Expression.EntityAlias.ToLower <> MainEntityAlias.ToLower) Then SetEntityDependency(MainEntityAlias, Expression.EntityAlias)
+
+            If Counter < FilterExpressions.Count Then
+                Select Case Combiner
+                    Case FilterCombiners.And
+                        FilterBuilder.Append(" AND ")
+                    Case FilterCombiners.Or
+                        FilterBuilder.Append(" OR ")
+                    Case Else
+                        Throw New NotImplementedException("FilterCombiner " + Combiner.ToString + " not implemented!")
+                End Select
+            End If
+        Next
+    End Sub
+
+    Public Overrides Function FilterBy(EntityAlias As String, FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
+        If FilterBuilder.Length <= 0 Then
+            FilterBuilder.Append(" WHERE ")
+            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
+        Else
+            FilterBuilder.AppendFormat(" AND [{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
+        End If
+
+        ConvertValueToParameter(Value, [Operator])
+
+        If (EntityAlias.ToLower <> MainEntityAlias.ToLower) Then SetEntityDependency(MainEntityAlias, EntityAlias)
+
+        Return Me
+    End Function
+
+    Public Overrides Function FilterBy(ByRef FilterExpression As DynamoFilterExpression) As IFilterQueryBuilder
+        If FilterBuilder.Length <= 0 Then
+            FilterBuilder.Append(" WHERE ")
+            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
+        Else
+            FilterBuilder.AppendFormat(" AND [{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
+        End If
+
+        ConvertValueToParameter(FilterExpression.Value, FilterExpression.Operator)
+
+        If (FilterExpression.EntityAlias.ToLower <> MainEntityAlias.ToLower) Then SetEntityDependency(MainEntityAlias, FilterExpression.EntityAlias)
+
+        Return Me
     End Function
 
     Private Sub ConvertValueToParameter(ByRef Value As Object, ByRef [Operator] As FilterOperators)
@@ -160,243 +181,6 @@ Public Class QueryBuilder
         Return ParamNameBuilder.ToString
     End Function
 
-    Private Sub ParseFilterExpressionList(ByRef FilterExpressions As IEnumerable(Of Expressions.DynamoFilterExpression), ByRef Combiner As FilterCombiners)
-        Dim Counter As Integer = 0
-        For Each Expression In FilterExpressions
-            Counter += 1
-            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", Expression.EntityAlias, Expression.FieldName, FilterOperatorToString(Expression.Operator))
-            ConvertValueToParameter(Expression.Value, Expression.Operator)
-            If (Expression.EntityAlias.ToLower <> MainEntityAlias.ToLower) Then SetEntityDependency(MainEntityAlias, Expression.EntityAlias)
-
-            If Counter < FilterExpressions.Count Then
-                Select Case Combiner
-                    Case FilterCombiners.And
-                        FilterBuilder.Append(" AND ")
-                    Case FilterCombiners.Or
-                        FilterBuilder.Append(" OR ")
-                    Case Else
-                        Throw New NotImplementedException("FilterCombiner " + Combiner.ToString + " not implemented!")
-                End Select
-            End If
-        Next
-    End Sub
-
-    Private Sub SetEntityDependency(ByVal NestedEntityAlias As String, ByVal ParentEntityAlias As String)
-        If Not EntityDependencies.ContainsKey(NestedEntityAlias) Then EntityDependencies.Add(NestedEntityAlias, New HashSet(Of String)(StringComparer.InvariantCultureIgnoreCase))
-        EntityDependencies(NestedEntityAlias).Add(ParentEntityAlias)
-    End Sub
-
-    Public Overrides Function FilterBy(EntityAlias As String, FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
-        If FilterBuilder.Length <= 0 Then
-            FilterBuilder.Append(" WHERE ")
-            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
-        Else
-            FilterBuilder.AppendFormat(" AND [{0}].[{1}] {2} ", EntityAlias, FieldName, FilterOperatorToString([Operator]))
-        End If
-
-        ConvertValueToParameter(Value, [Operator])
-
-        If (EntityAlias.ToLower <> MainEntityAlias.ToLower) Then SetEntityDependency(MainEntityAlias, EntityAlias)
-
-        Return Me
-    End Function
-
-    Public Overrides Function FilterBy(ByRef FilterExpression As DynamoFilterExpression) As IFilterQueryBuilder
-        If FilterBuilder.Length <= 0 Then
-            FilterBuilder.Append(" WHERE ")
-            FilterBuilder.AppendFormat("[{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
-        Else
-            FilterBuilder.AppendFormat(" AND [{0}].[{1}] {2} ", FilterExpression.EntityAlias, FilterExpression.FieldName, FilterOperatorToString(FilterExpression.Operator))
-        End If
-
-        ConvertValueToParameter(FilterExpression.Value, FilterExpression.Operator)
-
-        If (FilterExpression.EntityAlias.ToLower <> MainEntityAlias.ToLower) Then SetEntityDependency(MainEntityAlias, FilterExpression.EntityAlias)
-
-        Return Me
-    End Function
-
-    Public Overrides Function Execute() As List(Of Entity)
-        Dim Result As New List(Of Entity)
-
-        TempBuilder.Clear()
-        For Each SqlQuery In MARSQueries
-            TempBuilder.Append(SqlQuery.Value)
-
-            ElaborateDependencies(SqlQuery.Key, SqlQuery.Key)
-            ElaboratedDependeciesAlias.Clear()
-            TempBuilder.Append(FilterBuilder.ToString)
-            TempBuilder.Append(Environment.NewLine)
-        Next
-
-        With DirectCast(Repository, Repository)
-            .OpenConnection()
-            Using .Connection
-
-                Using Command As New SqlCommand(TempBuilder.ToString, .Connection)
-                    Command.Parameters.AddRange(Parameters.ToArray)
-
-                    Dim Adapter As New SqlDataAdapter(Command)
-                    Adapter.MissingSchemaAction = MissingSchemaAction.AddWithKey
-                    Adapter.Fill(DBResult)
-
-
-                End Using
-            End Using
-
-            Dim Counter As Integer = 0
-            For Each TableName In MARSQueries.Keys
-                DBResult.Tables(Counter).TableName = TableName
-                Counter += 1
-            Next
-
-            ConvertDBResultToObjectTree(Result)
-        End With
-
-        CleanParameters()
-        Return Result
-    End Function
-
-    Private Sub ElaborateDependencies(ByVal NestedEntityAlias As String, ByVal QueryEntityAlias As String)
-        If EntityDependencies.ContainsKey(NestedEntityAlias) Then
-            For Each Dependency In EntityDependencies(NestedEntityAlias)
-                If Dependency.ToLower = QueryEntityAlias.ToLower Then Continue For
-                If ElaboratedDependeciesAlias.Contains(Dependency) Then Continue For
-
-                Dim Expression = (From Item In NestedExpressions
-                                  Where ((Item.ParentEntityAlias.ToLower = NestedEntityAlias.ToLower AndAlso Item.NestedEntityAlias.ToLower = Dependency.ToLower) _
-                                  OrElse (Item.NestedEntityAlias.ToLower = NestedEntityAlias.ToLower AndAlso Item.ParentEntityAlias.ToLower = Dependency.ToLower))
-                                  Select Item).FirstOrDefault()
-
-                If Expression IsNot Nothing Then
-                    For Each FieldMap In Expression.MatchingFieldsMap
-                        If Expression.ParentEntityAlias.ToLower = Dependency.ToLower Then
-                            TempBuilder.AppendFormat(" INNER JOIN [{0}] [{1}] ON [{1}].[{2}] = [{3}].[{4}]", Entities(Dependency), Dependency, FieldMap.ParentEntityFieldName, NestedEntityAlias, FieldMap.NestedEntityFieldName)
-                        Else
-                            TempBuilder.AppendFormat(" INNER JOIN [{0}] [{1}] ON [{1}].[{2}] = [{3}].[{4}]", Entities(Dependency), Dependency, FieldMap.NestedEntityFieldName, NestedEntityAlias, FieldMap.ParentEntityFieldName)
-                        End If
-                    Next
-                End If
-
-                ElaboratedDependeciesAlias.Add(NestedEntityAlias)
-                If Not ElaboratedDependeciesAlias.Contains(Dependency) Then ElaborateDependencies(Dependency, QueryEntityAlias)
-            Next
-        End If
-    End Sub
-
-    Private Sub CleanParameters()
-        'Clean because any subsequent query will be affected by these parameters
-        EntityDependencies.Clear()
-        Parameters.Clear()
-        MARSQueries.Clear()
-        NestedExpressions.Clear()
-        LatestMethodParameters.Clear()
-        ElaboratedDependeciesAlias.Clear()
-    End Sub
-
-    Private Sub ConvertDBResultToObjectTree(ByRef Result As List(Of Entity))
-        Dim Table = DBResult.Tables(0)
-        For Each Row As DataRow In Table.Rows
-            Dim Record = New Entity
-            Record.Schema.EntityName = Entities(Table.TableName)
-
-            RetrieveEntitySchema(Row, Record)
-            ConvertColumnsToEntityFields(Row, Record)
-            CreateNestedObjects(Table.TableName, Record)
-
-            Result.Add(Record)
-        Next
-    End Sub
-
-    Private Sub RetrieveEntitySchema(ByRef Row As DataRow, ByRef Record As Entity)
-        With DirectCast(Repository, Repository)
-            If .Conventions.AutodetectEntityFieldID Then
-                If Row.Table.PrimaryKey.Count = 1 Then
-                    Record.Schema.FieldID = Row.Table.PrimaryKey.FirstOrDefault.ColumnName
-                    Record.Id = Row(Row.Table.PrimaryKey.FirstOrDefault.ColumnName)
-                Else
-                    Record.Schema.Errors.Add("Cannot retrieve the PRIMARY KEY from the entity schema because it is empty or too many primary key is defined.")
-                    RetrieveSchemaFieldID(Row, Record)
-                End If
-            Else
-                RetrieveSchemaFieldID(Row, Record)
-            End If
-
-            RetrieveSchemaFieldName(Row, Record)
-        End With
-    End Sub
-
-    Private Sub RetrieveSchemaFieldID(ByRef Row As DataRow, ByRef Record As Entity)
-        Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldID.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
-        Dim FieldID = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
-        If Not String.IsNullOrWhiteSpace(FieldID) Then
-            Record.Schema.FieldID = FieldID
-            Record.Id = Row(FieldID)
-        Else
-            Record.Schema.Errors.Add("Cannot retrieve the ENTITY ID by using convention.")
-        End If
-    End Sub
-
-    Private Sub RetrieveSchemaFieldName(ByRef Row As DataRow, ByRef Record As Entity)
-        Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldName.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
-        Dim FieldName = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
-        If Not String.IsNullOrWhiteSpace(FieldName) Then
-            Record.Schema.FieldName = FieldName
-            Record.Name = Row(FieldName)
-        Else
-            Record.Schema.Errors.Add("Cannot retrieve the ENTITY NAME by using convention.")
-        End If
-    End Sub
-
-    Private Sub ConvertColumnsToEntityFields(ByRef Row As DataRow, ByRef Record As Entity)
-        For Each Column As DataColumn In Row.Table.Columns
-            Record.Fields.Add(Column.ColumnName, Row(Column))
-        Next
-    End Sub
-
-    Private Sub CreateNestedObjects(ByVal EntityAlias As String, ByRef Record As Entity)
-        Dim NestedFilteredExpressions = (From Item In NestedExpressions Where Item.ParentEntityAlias.ToLower = EntityAlias.ToLower Select Item).ToList
-        For Each NestedExpression In NestedFilteredExpressions
-            Dim NestedEntities As New List(Of Entity)
-            ConvertNestedTableToObjectTree(DBResult.Tables(NestedExpression.NestedEntityAlias), NestedEntities, NestedExpression, Record)
-            Record.Fields.Add(NestedExpression.NestedEntityAlias, NestedEntities)
-        Next
-    End Sub
-
-    Private Sub ConvertNestedTableToObjectTree(ByRef Table As DataTable, ByRef Result As List(Of Entity), ByRef Expression As NestedExpression, ByRef ParentEntity As Entity)
-        Dim NestedComposableQuery = From Record As DataRow In Table.Rows
-        For Each MatchFieldMap In Expression.MatchingFieldsMap
-            Dim ParentValue = ParentEntity.Fields(MatchFieldMap.ParentEntityFieldName)
-            NestedComposableQuery = From Record In NestedComposableQuery Where Record(MatchFieldMap.NestedEntityFieldName) = ParentValue
-        Next
-        For Each Row In NestedComposableQuery.ToList()
-            Dim Record = New Entity
-            Record.Schema.EntityName = Entities(Table.TableName)
-
-            RetrieveEntitySchema(Row, Record)
-            ConvertColumnsToEntityFields(Row, Record)
-            CreateNestedObjects(Table.TableName, Record)
-
-            Result.Add(Record)
-        Next
-
-    End Sub
-
-    Public Overrides Function SortBy(EntityAlias As String, FieldName As String, Direction As SortDirections) As IQueryBuilder
-        If SortBuilder.Length <= 0 Then
-            SortBuilder.Append(" ORDER BY ")
-            SortBuilder.AppendFormat("[{0}].[{1}] {2} ", EntityAlias, FieldName, SortDirectionToString(Direction))
-        Else
-            TempBuilder.Clear()
-            TempBuilder.AppendFormat("[{0}].[{1}]", EntityAlias, FieldName)
-            If SortBuilder.ToString().Contains(TempBuilder.ToString) Then
-                Throw New Exception(String.Format("The field {0}.{1} Is already used In ORDER BY expression!", EntityAlias, FieldName))
-            End If
-            SortBuilder.AppendFormat(", [{0}].[{1}] {2} ", EntityAlias, FieldName, SortDirectionToString(Direction))
-        End If
-        Return Me
-    End Function
-
     Public Overrides Function OrFilterBy(EntityAlias As String, FieldName As String, [Operator] As FilterOperators, ByRef Value As Object) As IFilterQueryBuilder
         If FilterBuilder.Length <= 0 Then
             Throw New Exception("Cannot execute this method before call FilterBy!")
@@ -453,6 +237,43 @@ Public Class QueryBuilder
         Return Me
     End Function
 
+#End Region
+
+#Region "SORTING Functions"
+    Private Function SortDirectionToString(Direction As SortDirections) As String
+        Select Case Direction
+            Case SortDirections.Ascending
+                Return "ASC"
+            Case SortDirections.Descending
+                Return "DESC"
+            Case Else
+                Throw New NotImplementedException("SortDirection " + Direction.ToString + " not implemented!")
+        End Select
+    End Function
+
+    Public Overrides Function SortBy(EntityAlias As String, FieldName As String, Direction As SortDirections) As IQueryBuilder
+        If SortBuilder.Length <= 0 Then
+            SortBuilder.Append(" ORDER BY ")
+            SortBuilder.AppendFormat("[{0}].[{1}] {2} ", EntityAlias, FieldName, SortDirectionToString(Direction))
+        Else
+            TempBuilder.Clear()
+            TempBuilder.AppendFormat("[{0}].[{1}]", EntityAlias, FieldName)
+            If SortBuilder.ToString().Contains(TempBuilder.ToString) Then
+                Throw New Exception(String.Format("The field {0}.{1} Is already used In ORDER BY expression!", EntityAlias, FieldName))
+            End If
+            SortBuilder.AppendFormat(", [{0}].[{1}] {2} ", EntityAlias, FieldName, SortDirectionToString(Direction))
+        End If
+        Return Me
+    End Function
+
+#End Region
+
+#Region "NESTING Functions"
+    Private Sub SetEntityDependency(ByVal NestedEntityAlias As String, ByVal ParentEntityAlias As String)
+        If Not EntityDependencies.ContainsKey(NestedEntityAlias) Then EntityDependencies.Add(NestedEntityAlias, New HashSet(Of String)(StringComparer.InvariantCultureIgnoreCase))
+        EntityDependencies(NestedEntityAlias).Add(ParentEntityAlias)
+    End Sub
+
     Public Overrides Function WithNested(NestedEntityName As String, NestedEntityAlias As String, ParentEntityAlias As String) As INestedQueryBuilder
         MARSQueries.Add(NestedEntityAlias.ToLower, String.Format("Select {1}.* FROM [{0}] {1}", NestedEntityName, NestedEntityAlias))
 
@@ -483,6 +304,195 @@ Public Class QueryBuilder
 
         Return Me
     End Function
+
+#End Region
+
+#Region "QUERY BUILDING Functions"
+    Private Sub ElaborateDependencies(ByVal NestedEntityAlias As String, ByVal QueryEntityAlias As String)
+        If EntityDependencies.ContainsKey(NestedEntityAlias) Then
+            For Each Dependency In EntityDependencies(NestedEntityAlias)
+                If Dependency.ToLower = QueryEntityAlias.ToLower Then Continue For
+                If ElaboratedDependeciesAlias.Contains(Dependency) Then Continue For
+
+                Dim Expression = (From Item In NestedExpressions
+                                  Where ((Item.ParentEntityAlias.ToLower = NestedEntityAlias.ToLower AndAlso Item.NestedEntityAlias.ToLower = Dependency.ToLower) _
+                                  OrElse (Item.NestedEntityAlias.ToLower = NestedEntityAlias.ToLower AndAlso Item.ParentEntityAlias.ToLower = Dependency.ToLower))
+                                  Select Item).FirstOrDefault()
+
+                If Expression IsNot Nothing Then
+                    For Each FieldMap In Expression.MatchingFieldsMap
+                        If Expression.ParentEntityAlias.ToLower = Dependency.ToLower Then
+                            TempBuilder.AppendFormat(" INNER JOIN [{0}] [{1}] ON [{1}].[{2}] = [{3}].[{4}]", Entities(Dependency), Dependency, FieldMap.ParentEntityFieldName, NestedEntityAlias, FieldMap.NestedEntityFieldName)
+                        Else
+                            TempBuilder.AppendFormat(" INNER JOIN [{0}] [{1}] ON [{1}].[{2}] = [{3}].[{4}]", Entities(Dependency), Dependency, FieldMap.NestedEntityFieldName, NestedEntityAlias, FieldMap.ParentEntityFieldName)
+                        End If
+                    Next
+                End If
+
+                ElaboratedDependeciesAlias.Add(NestedEntityAlias)
+                If Not ElaboratedDependeciesAlias.Contains(Dependency) Then ElaborateDependencies(Dependency, QueryEntityAlias)
+            Next
+        End If
+    End Sub
+
+#End Region
+
+#Region "RESULT PARSING Functions"
+    Private Sub ConvertDBResultToObjectTree(ByRef Result As List(Of Entity))
+        Dim Table = DBResult.Tables(0)
+        For Each Row As DataRow In Table.Rows
+            Dim Record = New Entity(Table.TableName)
+            RetrieveEntitySchema(Row, Record)
+            ConvertColumnsToEntityFields(Row, Record)
+            CreateNestedObjects(Table.TableName, Record)
+
+            Result.Add(Record)
+        Next
+    End Sub
+
+    Private Sub RetrieveEntitySchema(ByRef Row As DataRow, ByRef Record As Entity)
+        With DirectCast(Repository, Repository)
+            If .Conventions.AutodetectEntityFieldID Then
+                If Row.Table.PrimaryKey.Count = 1 Then
+                    Record.Schema.FieldID = Row.Table.PrimaryKey.FirstOrDefault.ColumnName
+                    Record.Id = Row(Row.Table.PrimaryKey.FirstOrDefault.ColumnName)
+                Else
+                    Record.Status.Errors.Add("Cannot retrieve the PRIMARY KEY from the entity schema because it is empty or too many primary key is defined.")
+                    RetrieveSchemaFieldID(Row, Record)
+                End If
+            Else
+                RetrieveSchemaFieldID(Row, Record)
+            End If
+
+            RetrieveSchemaFieldName(Row, Record)
+        End With
+    End Sub
+
+    Private Sub RetrieveSchemaFieldID(ByRef Row As DataRow, ByRef Record As Entity)
+        Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldID.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
+        Dim FieldID = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
+        If Not String.IsNullOrWhiteSpace(FieldID) Then
+            Record.Schema.FieldID = FieldID
+            Record.Id = Row(FieldID)
+        Else
+            Record.Status.Errors.Add("Cannot retrieve the ENTITY ID by using convention.")
+        End If
+    End Sub
+
+    Private Sub RetrieveSchemaFieldName(ByRef Row As DataRow, ByRef Record As Entity)
+        Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldName.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
+        Dim FieldName = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
+        If Not String.IsNullOrWhiteSpace(FieldName) Then
+            Record.Schema.FieldName = FieldName
+            Record.Name = Row(FieldName)
+        Else
+            Record.Status.Errors.Add("Cannot retrieve the ENTITY NAME by using convention.")
+        End If
+    End Sub
+
+    Private Sub ConvertColumnsToEntityFields(ByRef Row As DataRow, ByRef Record As Entity)
+        For Each Column As DataColumn In Row.Table.Columns
+            Record.Fields.Add(Column.ColumnName, Row(Column))
+        Next
+    End Sub
+
+    Private Sub CreateNestedObjects(ByVal EntityAlias As String, ByRef Record As Entity)
+        Dim NestedFilteredExpressions = (From Item In NestedExpressions Where Item.ParentEntityAlias.ToLower = EntityAlias.ToLower Select Item).ToList
+        For Each NestedExpression In NestedFilteredExpressions
+            Dim NestedEntities As New List(Of Entity)
+            ConvertNestedTableToObjectTree(DBResult.Tables(NestedExpression.NestedEntityAlias), NestedEntities, NestedExpression, Record)
+            Record.Fields.Add(NestedExpression.NestedEntityAlias, NestedEntities)
+        Next
+    End Sub
+
+    Private Sub ConvertNestedTableToObjectTree(ByRef Table As DataTable, ByRef Result As List(Of Entity), ByRef Expression As NestedExpression, ByRef ParentEntity As Entity)
+        Dim NestedComposableQuery = From Record As DataRow In Table.Rows
+        For Each MatchFieldMap In Expression.MatchingFieldsMap
+            Dim ParentValue = ParentEntity.Fields(MatchFieldMap.ParentEntityFieldName)
+            NestedComposableQuery = From Record In NestedComposableQuery Where Record(MatchFieldMap.NestedEntityFieldName) = ParentValue
+        Next
+        For Each Row In NestedComposableQuery.ToList()
+            Dim Record = New Entity(Table.TableName)
+            RetrieveEntitySchema(Row, Record)
+            ConvertColumnsToEntityFields(Row, Record)
+            CreateNestedObjects(Table.TableName, Record)
+
+            Result.Add(Record)
+        Next
+
+    End Sub
+
+#End Region
+
+    Public Sub New(ByRef Repository As Repository, ByVal EntityName As String, ByVal EntityAlias As String)
+        MyBase.New(Repository, EntityName, EntityAlias)
+
+        Parameters = New List(Of SqlParameter)
+        TempBuilder = New StringBuilder
+        ParamNameBuilder = New StringBuilder
+        FilterBuilder = New StringBuilder
+        SortBuilder = New StringBuilder
+        MARSQueries = New Dictionary(Of String, String)(StringComparer.InvariantCultureIgnoreCase)
+        EntityDependencies = New Dictionary(Of String, HashSet(Of String))(StringComparer.InvariantCultureIgnoreCase)
+        ElaboratedDependeciesAlias = New HashSet(Of String)(StringComparer.InvariantCultureIgnoreCase)
+        NestedExpressions = New List(Of NestedExpression)
+        LatestMethodParameters = New Dictionary(Of String, Object)
+        DBResult = New DataSet
+
+        MARSQueries.Add(EntityAlias.ToLower, String.Format("SELECT {1}.* FROM [{0}] {1}", EntityName, EntityAlias))
+    End Sub
+
+    Public Overrides Function Execute() As List(Of Entity)
+        Dim Result As New List(Of Entity)
+
+        TempBuilder.Clear()
+        For Each SqlQuery In MARSQueries
+            TempBuilder.Append(SqlQuery.Value)
+
+            ElaborateDependencies(SqlQuery.Key, SqlQuery.Key)
+            ElaboratedDependeciesAlias.Clear()
+            TempBuilder.Append(FilterBuilder.ToString)
+            TempBuilder.Append(Environment.NewLine)
+        Next
+
+        With DirectCast(Repository, Repository)
+            .OpenConnection()
+            Using .Connection
+
+                Using Command As New SqlCommand(TempBuilder.ToString, .Connection)
+                    Command.Parameters.AddRange(Parameters.ToArray)
+
+                    Dim Adapter As New SqlDataAdapter(Command)
+                    Adapter.MissingSchemaAction = MissingSchemaAction.AddWithKey
+                    Adapter.Fill(DBResult)
+
+
+                End Using
+            End Using
+
+            Dim Counter As Integer = 0
+            For Each TableName In MARSQueries.Keys
+                DBResult.Tables(Counter).TableName = TableName
+                Counter += 1
+            Next
+
+            ConvertDBResultToObjectTree(Result)
+        End With
+
+        CleanParameters()
+        Return Result
+    End Function
+
+    Private Sub CleanParameters()
+        'Clean because any subsequent query will be affected by these parameters
+        EntityDependencies.Clear()
+        Parameters.Clear()
+        MARSQueries.Clear()
+        NestedExpressions.Clear()
+        LatestMethodParameters.Clear()
+        ElaboratedDependeciesAlias.Clear()
+    End Sub
+
 End Class
 
 Friend Class NestedExpression

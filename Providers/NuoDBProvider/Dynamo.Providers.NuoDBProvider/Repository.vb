@@ -1,4 +1,5 @@
 ﻿
+Imports Dynamo.Entities
 Imports NuoDb.Data.Client
 
 Public Class Repository
@@ -20,4 +21,29 @@ Public Class Repository
     Public Overrides Sub CloseConnection()
         If Connection IsNot Nothing AndAlso Connection.State <> ConnectionState.Closed Then Connection.Close()
     End Sub
+#Region "Create, Update, Delete operations"
+    Public Overrides Sub AddEntity(ByRef Entity As Entity)
+        Throw New NotImplementedException()
+    End Sub
+
+    Public Overrides Sub AddEntities(ByRef Entities As List(Of Entity))
+        Throw New NotImplementedException()
+    End Sub
+
+    Public Overrides Sub UpdateEntity(ByRef Entity As Entity)
+        Throw New NotImplementedException()
+    End Sub
+
+    Public Overrides Sub UpdateEntities(ByRef Entities As List(Of Entity))
+        Throw New NotImplementedException()
+    End Sub
+
+    Public Overrides Sub DeleteEntity(ByRef Entity As Entity)
+        Throw New NotImplementedException()
+    End Sub
+
+    Public Overrides Sub DeleteEntities(ByRef Entities As List(Of Entity))
+        Throw New NotImplementedException()
+    End Sub
+#End Region
 End Class

@@ -271,9 +271,7 @@ Public Class QueryBuilder
     Private Sub ConvertDBResultToObjectTree(ByRef Result As List(Of Entity))
         Dim Table = DBResult.Tables(0)
         For Each Row As DataRow In Table.Rows
-            Dim Record = New Entity
-            Record.Schema.EntityName = Entities(Table.TableName)
-
+            Dim Record = New Entity(Table.TableName)
             RetrieveEntitySchema(Row, Record)
             ConvertColumnsToEntityFields(Row, Record)
             CreateNestedObjects(Table.TableName, Record)
@@ -289,7 +287,7 @@ Public Class QueryBuilder
                     Record.Schema.FieldID = Row.Table.PrimaryKey.FirstOrDefault.ColumnName
                     Record.Id = Row(Row.Table.PrimaryKey.FirstOrDefault.ColumnName)
                 Else
-                    Record.Schema.Errors.Add("Cannot retrieve the PRIMARY KEY from the entity schema because it Is empty Or too many primary key Is defined.")
+                    Record.Status.Errors.Add("Cannot retrieve the PRIMARY KEY from the entity schema because it Is empty Or too many primary key Is defined.")
                     RetrieveSchemaFieldID(Row, Record)
                 End If
             Else
@@ -307,7 +305,7 @@ Public Class QueryBuilder
             Record.Schema.FieldID = FieldID
             Record.Id = Row(FieldID)
         Else
-            Record.Schema.Errors.Add("Cannot retrieve the ENTITY ID by Using convention.")
+            Record.Status.Errors.Add("Cannot retrieve the ENTITY ID by Using convention.")
         End If
     End Sub
 
@@ -318,7 +316,7 @@ Public Class QueryBuilder
             Record.Schema.FieldName = FieldName
             Record.Name = Row(FieldName)
         Else
-            Record.Schema.Errors.Add("Cannot retrieve the ENTITY NAME by Using convention.")
+            Record.Status.Errors.Add("Cannot retrieve the ENTITY NAME by Using convention.")
         End If
     End Sub
 
@@ -344,9 +342,7 @@ Public Class QueryBuilder
             NestedComposableQuery = From Record In NestedComposableQuery Where Record(MatchFieldMap.NestedEntityFieldName) = ParentValue
         Next
         For Each Row In NestedComposableQuery.ToList()
-            Dim Record = New Entity
-            Record.Schema.EntityName = Entities(Table.TableName)
-
+            Dim Record = New Entity(Table.TableName)
             RetrieveEntitySchema(Row, Record)
             ConvertColumnsToEntityFields(Row, Record)
             CreateNestedObjects(Table.TableName, Record)

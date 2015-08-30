@@ -103,6 +103,7 @@
     <Import Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ArangoDBTest.vb" />
     <Compile Include="SQLiteTest.vb" />
     <Compile Include="NuoDBTest.vb" />
     <Compile Include="SQLServerTest.vb" />
@@ -146,6 +147,10 @@
     <ProjectReference Include="..\..\Dynamo\Dynamo.vbproj">
       <Project>{F99E6BE6-1829-42E4-ADBC-4B3DF70F6531}</Project>
       <Name>Dynamo</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\Providers\ArangoDBProvider\Dynamo.Providers.ArangoDBProvider\Dynamo.Providers.ArangoDBProvider.vbproj">
+      <Project>{a26f38be-0c75-4546-aa0d-8b701834903d}</Project>
+      <Name>Dynamo.Providers.ArangoDBProvider</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Providers\NuoDBProvider\Dynamo.Providers.NuoDBProvider\Dynamo.Providers.NuoDBProvider.vbproj">
       <Project>{98c0d557-bcea-4880-a2a4-9e725d9221d0}</Project>

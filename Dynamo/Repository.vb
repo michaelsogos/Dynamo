@@ -4,6 +4,12 @@ Imports Dynamo.Entities
 Namespace Contracts
     Public Interface IRepository
         Function Query(ByVal EntityName As String, ByVal EntityAlias As String) As IQueryBuilder
+        Sub AddEntity(ByRef Entity As Entity)
+        Sub AddEntities(ByRef Entities As List(Of Entity))
+        Sub UpdateEntity(ByRef Entity As Entity)
+        Sub UpdateEntities(ByRef Entities As List(Of Entity))
+        Sub DeleteEntity(ByRef Entity As Entity)
+        Sub DeleteEntities(ByRef Entities As List(Of Entity))
         Sub OpenConnection()
         Sub CloseConnection()
     End Interface
@@ -21,7 +27,6 @@ Public MustInherit Class DynamoRepository(Of QueryBuilder As DynamoQueryBuilder)
     Public Sub New(ByVal ConnectionString As String)
         Me.Conventions = New DynamoConventions
         Me.ConnectionString = ConnectionString
-        'If DynamoCache.EntitiesForeignkeys Is Nothing Then DynamoCache.EntitiesForeignkeys = New Dictionary(Of String, List(Of EntityForeignkey))
         AddHandler MappingDataToEntity, Sub(s, e) RaiseEvent MappingDataToEntity(s, e)
     End Sub
 
@@ -32,6 +37,18 @@ Public MustInherit Class DynamoRepository(Of QueryBuilder As DynamoQueryBuilder)
     Public MustOverride Sub OpenConnection() Implements IRepository.OpenConnection
 
     Public MustOverride Sub CloseConnection() Implements IRepository.CloseConnection
+
+    Public MustOverride Sub AddEntity(ByRef Entity As Entity) Implements IRepository.AddEntity
+
+    Public MustOverride Sub AddEntities(ByRef Entities As List(Of Entity)) Implements IRepository.AddEntities
+
+    Public MustOverride Sub UpdateEntity(ByRef Entity As Entity) Implements IRepository.UpdateEntity
+
+    Public MustOverride Sub UpdateEntities(ByRef Entities As List(Of Entity)) Implements IRepository.UpdateEntities
+
+    Public MustOverride Sub DeleteEntity(ByRef Entity As Entity) Implements IRepository.DeleteEntity
+
+    Public MustOverride Sub DeleteEntities(ByRef Entities As List(Of Entity)) Implements IRepository.DeleteEntities
 
 #Region "IDisposable Support"
     Private disposedValue As Boolean ' To detect redundant calls
@@ -51,6 +68,8 @@ Public MustInherit Class DynamoRepository(Of QueryBuilder As DynamoQueryBuilder)
         Dispose(True)
         GC.SuppressFinalize(Me)
     End Sub
+
+
 #End Region
 
 End Class
