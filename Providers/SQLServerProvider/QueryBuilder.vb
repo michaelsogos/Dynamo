@@ -354,7 +354,7 @@ Public Class QueryBuilder
         With DirectCast(Repository, Repository)
             If .Conventions.AutodetectEntityFieldID Then
                 If Row.Table.PrimaryKey.Count = 1 Then
-                    Record.Schema.FieldID = Row.Table.PrimaryKey.FirstOrDefault.ColumnName
+                    Record.Schema.PrimaryFieldID = Row.Table.PrimaryKey.FirstOrDefault.ColumnName
                     Record.Id = Row(Row.Table.PrimaryKey.FirstOrDefault.ColumnName)
                 Else
                     Record.Status.Errors.Add("Cannot retrieve the PRIMARY KEY from the entity schema because it is empty or too many primary key is defined.")
@@ -372,7 +372,7 @@ Public Class QueryBuilder
         Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldID.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
         Dim FieldID = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
         If Not String.IsNullOrWhiteSpace(FieldID) Then
-            Record.Schema.FieldID = FieldID
+            Record.Schema.PrimaryFieldID = FieldID
             Record.Id = Row(FieldID)
         Else
             Record.Status.Errors.Add("Cannot retrieve the ENTITY ID by using convention.")
@@ -383,7 +383,7 @@ Public Class QueryBuilder
         Dim LookupNames = DirectCast(Repository, Repository).Conventions.EntityFieldName.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
         Dim FieldName = (From Column As DataColumn In Row.Table.Columns Where LookupNames.Contains(Column.ColumnName.ToLower) Select Column.ColumnName).FirstOrDefault
         If Not String.IsNullOrWhiteSpace(FieldName) Then
-            Record.Schema.FieldName = FieldName
+            Record.Schema.PrimaryFieldName = FieldName
             Record.Name = Row(FieldName)
         Else
             Record.Status.Errors.Add("Cannot retrieve the ENTITY NAME by using convention.")

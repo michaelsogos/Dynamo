@@ -64,7 +64,7 @@ Public Class Repository
 
     Friend Function ConvertResultToEntity(ByRef EntitySchemaName As String, ByRef Result As IDictionary(Of String, Object)) As Entity
         Dim Record = New Entity(EntitySchemaName)
-        Record.Schema.FieldID = "_key"
+        Record.Schema.PrimaryFieldID = "_key"
         Record.Id = Result("_key")
         Record.Fields.AddRange(Result)
         Return Record
@@ -74,7 +74,7 @@ Public Class Repository
         Dim LookupNames = Me.Conventions.EntityFieldName.Replace("{entityname}", Record.Schema.EntityName).ToLower().Split("|")
         Dim FieldName = (From FieldKey In ArangoEntity.Keys Where LookupNames.Contains(FieldKey.ToLower) Select FieldKey).FirstOrDefault
         If Not String.IsNullOrWhiteSpace(FieldName) Then
-            Record.Schema.FieldName = FieldName
+            Record.Schema.PrimaryFieldName = FieldName
             Record.Name = ArangoEntity(FieldName)
         Else
             Record.Status.Errors.Add("Cannot retrieve the ENTITY NAME by using convention.")
@@ -94,7 +94,7 @@ Public Class Repository
             Entity.Fields("_key") = Result.Value("_key")
             Entity.Fields("_rev") = Result.Value("_rev")
             Entity.Fields("_id") = Result.Value("_id")
-            Entity.Schema.FieldID = "_key"
+            Entity.Schema.PrimaryFieldID = "_key"
             Entity.Id = Result.Value("_key")
             RetrieveSchemaFieldName(Entity.Fields, Entity)
         Else

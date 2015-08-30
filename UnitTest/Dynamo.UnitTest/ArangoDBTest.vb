@@ -180,6 +180,10 @@ Public Class ArangoDBTest
         Assert.AreEqual(FirstEntity.Name, "Test2")
         Assert.AreEqual(FirstEntity.Test, 3L)
         Assert.AreEqual(FirstEntity.ST.Count, 2)
+        FirstEntity.Test = 1234
+        FirstEntity.Name = "TEST"
+        FirstEntity.fields("Test") = 321L
+        FirstEntity("Test") = 11223344
     End Sub
 
     <TestMethod>

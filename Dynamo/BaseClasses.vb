@@ -17,13 +17,7 @@
 
         Public Sub AddRange(ByRef Dictionary As IDictionary(Of String, Object))
             For Each KeyValueItem In Dictionary
-                MyBase.Add(KeyValueItem.Key, KeyValueItem.Value)
-            Next
-        End Sub
-
-        Public Sub AddRange(ByRef Dictionary As IDictionary(Of Integer, Object))
-            For Each KeyValueItem In Dictionary
-                MyBase.Add(KeyValueItem.Key.ToString, KeyValueItem.Value)
+                Me(KeyValueItem.Key) = KeyValueItem.Value
             Next
         End Sub
 
